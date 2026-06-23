@@ -27,9 +27,9 @@ window.addEventListener("resize", () => {
 });
 
 // soft ambient + hemisphere fill, plus one key light that casts the shadows.
-const hemi = new THREE.HemisphereLight(0xffffff, 0xb8b6ae, 0.7);
+const hemi = new THREE.HemisphereLight(0xffffff, 0xc4c2ba, 0.95);
 scene.add(hemi);
-const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+const ambient = new THREE.AmbientLight(0xffffff, 0.55);
 scene.add(ambient);
 
 const key = new THREE.DirectionalLight(0xfff6e8, 1.15);
@@ -137,14 +137,43 @@ function setCreation() {
   }
   current = createMobile();
   renderer.setClearColor(new THREE.Color(current.background ?? GALLERY));
+  if (current.light) {
+    key.position.set(...current.light.position);
+    if (current.light.intensity !== undefined) key.intensity = current.light.intensity;
+    if (current.light.color !== undefined) key.color.set(current.light.color);
+  }
   scene.add(current.group);
 
   autoRotate = true;
-  camera.up.set(0, 1, 0);
-  camera.position.set(...current.camera);
-  controls.target.set(...(current.target ?? [0, 0, 0]));
-  controls.update();
+  frameCreation(current);
   buildUI();
+}
+
+// Fit the camera so the whole piece is in view: back off by exactly the
+// distance that fits its bounding sphere inside the smaller of the vertical /
+// horizontal FOV (so wide mobiles fill the frame without spilling). The
+// creation's suggested `camera` is used only as a viewing direction.
+function frameCreation(c: Creation) {
+  const box = new THREE.Box3().setFromObject(c.group);
+  if (box.isEmpty()) return;
+  const center = box.getCenter(new THREE.Vector3());
+  const radius = box.getBoundingSphere(new THREE.Sphere()).radius;
+
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  const vfov = THREE.MathUtils.degToRad(camera.fov);
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+  const dist = (radius / Math.sin(Math.min(vfov, hfov) / 2)) * 1.12; // 12% margin
+
+  const tgt = new THREE.Vector3(...(c.target ?? [center.x, center.y, center.z]));
+  const dir = new THREE.Vector3(...c.camera).sub(tgt);
+  if (dir.lengthSq() < 1e-4) dir.set(0.12, 0.05, 1);
+  dir.normalize();
+
+  camera.up.set(0, 1, 0);
+  camera.position.copy(center).addScaledVector(dir, dist);
+  controls.target.copy(center);
+  controls.update();
 }
 
 setCreation();

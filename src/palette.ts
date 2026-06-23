@@ -24,11 +24,13 @@ export function shuffle<T>(arr: T[]): T[] {
 export const hex = (c: number) => "#" + c.toString(16).padStart(6, "0");
 
 // ---- the Calder colours ----------------------------------------------------
-export const CALDER_RED = 0xd62828;
-export const CALDER_YELLOW = 0xf6c700;
-export const CALDER_BLUE = 0x1d4e9c;
-export const CALDER_BLACK = 0x111111;
-export const CALDER_WHITE = 0xf3f1ea;
+// Pure Bauhaus primaries (Itten/Kandinsky triad) — flat, saturated red/yellow/
+// blue, with true black and white. No muddy or tertiary tones.
+export const CALDER_RED = 0xe30613;
+export const CALDER_YELLOW = 0xffd400;
+export const CALDER_BLUE = 0x0b4ea2;
+export const CALDER_BLACK = 0x0d0d0d;
+export const CALDER_WHITE = 0xf7f6f2;
 
 // Gallery wall — a warm off-white, like the AGAM "cream" but cooler.
 export const GALLERY = 0xeceae4;
