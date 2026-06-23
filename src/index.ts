@@ -92,6 +92,14 @@ let current: Creation | null = null;
 let autoRotate = true;
 let spinBtn: (HTMLButtonElement & { setOn?: (v: boolean) => void }) | null = null;
 
+// wind strength (the rate/amplitude of the drift), active while drift is on.
+const WIND: { label: string; v: number }[] = [
+  { label: "light", v: 0.5 },
+  { label: "medium", v: 1.0 },
+  { label: "strong", v: 1.9 },
+];
+let windIdx = 1; // default medium
+
 function disposeGroup(g: THREE.Group) {
   g.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
@@ -99,9 +107,12 @@ function disposeGroup(g: THREE.Group) {
   });
 }
 
+let refreshWind: (() => void) | null = null; // re-dims wind buttons on drift toggle
+
 function setSpin(on: boolean) {
   autoRotate = on;
   spinBtn?.setOn?.(on);
+  refreshWind?.();
 }
 
 function buildUI() {
@@ -122,6 +133,32 @@ function buildUI() {
 
   spinBtn = makeToggle("drift", autoRotate, setSpin);
   bar.appendChild(spinBtn);
+
+  // wind-strength segmented control (light · medium · strong). Picking a level
+  // turns drift on if it was off. The active level reads bold; the inactive
+  // ones dim further when drift is off (they don't do anything then).
+  const windBtns: HTMLButtonElement[] = [];
+  const styleWind = () => {
+    WIND.forEach((_, i) => {
+      const active = i === windIdx;
+      windBtns[i].style.cssText =
+        BTN + `color:${!autoRotate ? "#b7babe" : active ? "#111" : "#6a6d72"};` +
+        `font-weight:${active ? "700" : "400"};`;
+    });
+  };
+  const windWrap = document.createElement("span");
+  windWrap.style.cssText = "display:flex;gap:8px;align-items:center;";
+  WIND.forEach((w, i) => {
+    const b = document.createElement("button");
+    b.textContent = w.label;
+    b.title = "drift strength";
+    b.onclick = () => { windIdx = i; if (!autoRotate) setSpin(true); styleWind(); };
+    windBtns.push(b);
+    windWrap.appendChild(b);
+  });
+  styleWind();
+  refreshWind = styleWind; // let setSpin re-dim these when drift toggles
+  bar.appendChild(windWrap);
 
   for (const tg of current?.toggles ?? []) {
     tg.set(tg.initial);
@@ -184,7 +221,7 @@ setCreation();
 const clock = new THREE.Clock();
 const animate = () => {
   requestAnimationFrame(animate);
-  current?.update?.(clock.getElapsedTime(), autoRotate, { renderer, scene });
+  current?.update?.(clock.getElapsedTime(), autoRotate, { renderer, scene, strength: WIND[windIdx].v });
   renderer.render(scene, camera);
   controls.update();
 };

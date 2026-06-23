@@ -22,7 +22,7 @@ export interface Creation {
   update?: (
     time: number,
     autoRotate: boolean,
-    env?: { renderer: THREE.WebGLRenderer; scene: THREE.Scene },
+    env?: { renderer: THREE.WebGLRenderer; scene: THREE.Scene; strength?: number },
   ) => void;
   toggles?: Toggle[]; // optional feature toggles
   dispose?: () => void; // tear down any DOM/listeners it added

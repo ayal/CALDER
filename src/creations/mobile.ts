@@ -149,6 +149,9 @@ function hangPlate(size: number, color: number, family: ShapeFn, facing: number,
 interface Pivot {
   obj: THREE.Object3D;
   drift: number; swayAmp: number; swayFreq: number; phase: number; tiltAmp: number; tiltFreq: number;
+  // accumulated angles (integrated per-frame), so changing wind strength scales
+  // the rate without snapping the position.
+  driftAngle: number; swayPhase: number; tiltPhase: number;
 }
 
 const GALLERIES = [GALLERY, 0xe9e7df, 0xeeece6, 0xe6e8e6];
@@ -156,6 +159,7 @@ const GALLERIES = [GALLERY, 0xe9e7df, 0xeeece6, 0xe6e8e6];
 export function createMobile(): Creation {
   const group = new THREE.Group();
   const pivots: Pivot[] = [];
+  let prevT = 0; // last update time, for per-frame integration
 
   // ---- per-piece character -------------------------------------------------
   const family = pick(FAMILIES);
@@ -178,6 +182,7 @@ export function createMobile(): Creation {
       phase: Math.random() * Math.PI * 2,
       tiltAmp: depth === 0 ? 0 : 0.015 + Math.random() * 0.04,
       tiltFreq: 0.4 + Math.random() * 0.8,
+      driftAngle: 0, swayPhase: 0, tiltPhase: 0,
     });
   }
 
@@ -315,11 +320,23 @@ export function createMobile(): Creation {
     camera: [c.x + dist * 0.1, c.y + sz.y * 0.04, c.z + dist],
     target: [c.x, c.y, c.z],
     light,
-    update: (time, autoRotate) => {
+    update: (time, autoRotate, env) => {
+      const dt = Math.min(0.05, Math.max(0, time - prevT)); // clamp big gaps/first frame
+      prevT = time;
       if (!autoRotate) return;
+      // wind strength scales rate and amplitude (1 = medium).
+      const wind = env?.strength ?? 1;
+      const speed = wind;
+      const freq = 0.6 + 0.4 * wind;
+      const amp = 0.5 + 0.5 * wind;
       for (const p of pivots) {
-        p.obj.rotation.y = p.drift * time + p.swayAmp * Math.sin(time * p.swayFreq + p.phase);
-        if (p.tiltAmp) p.obj.rotation.z = p.tiltAmp * Math.sin(time * p.tiltFreq + p.phase);
+        p.driftAngle += p.drift * speed * dt;
+        p.swayPhase += p.swayFreq * freq * dt;
+        p.obj.rotation.y = p.driftAngle + p.swayAmp * amp * Math.sin(p.swayPhase + p.phase);
+        if (p.tiltAmp) {
+          p.tiltPhase += p.tiltFreq * freq * dt;
+          p.obj.rotation.z = p.tiltAmp * amp * Math.sin(p.tiltPhase + p.phase);
+        }
       }
     },
   };
